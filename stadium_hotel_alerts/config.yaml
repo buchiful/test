@@ -1,0 +1,41 @@
+# Philippine Sports Stadium 周辺ホテル・Airbnb 空室監視の設定
+
+search:
+  check_in: "2027-03-15"
+  check_out: "2027-03-17"
+  adults: 2
+  currency: "PHP"
+
+location:
+  name: "Philippine Sports Stadium"
+  # Ciudad de Victoria, Bocaue/Santa Maria, Bulacan
+  lat: 14.7960
+  lng: 120.9545
+  # 検索対象の半径 (km)。車40分をカバーできる範囲を広めに取る
+  search_radius_km: 30
+
+filters:
+  # 1泊あたりの予算 (PHP)
+  min_price_per_night: 3000
+  max_price_per_night: 7000
+  min_rating: 3.7
+  require_air_conditioning: true
+  # 車での所要時間 (分)
+  max_drive_minutes: 40
+  preferred_drive_minutes: 20
+
+travel:
+  # OSRM は自由流の所要時間を返すため、渋滞を見込んだ係数を掛ける
+  traffic_factor: 1.4
+  # OSRM が使えない場合のフォールバック: 直線距離 ÷ 平均時速 (km/h)
+  fallback_speed_kmh: 30
+
+email:
+  to: "buchiful@gmail.com"
+  subject_prefix: "[Stadium Hotel Alert]"
+
+providers:
+  hotels: true   # SerpAPI Google Hotels (要 SERPAPI_API_KEY)
+  airbnb: true   # pyairbnb (非公式 API、キー不要)
+
+state_file: "state.json"
