@@ -96,6 +96,64 @@ def _parse_result(r: dict, nights: int) -> Listing | None:
     )
 
 
+def _find_capacity(data) -> int | None:
+    """get_details の応答から定員 (person_capacity 相当) を防御的に探す。"""
+    KEYS = ("person_capacity", "personCapacity", "guests", "max_guests",
+            "guest_limit", "capacity")
+    stack = [data]
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                if k in KEYS and isinstance(v, (int, float)) and 0 < v < 100:
+                    return int(v)
+                if isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return None
+
+
+def verify_guests(listings: list[Listing], config: dict) -> list[Listing]:
+    """Airbnb 候補が指定人数で宿泊可能かを詳細 API で検証する。
+
+    search_all はゲスト数を指定できないため、候補に残った Airbnb 物件だけ
+    get_details(adults=N) で定員を確認し、定員不足の物件を除外する。
+    詳細取得に失敗した物件は除外しない (空振り通知を失うより誤検知を許容)。
+    ホテル物件はそのまま通す。
+    """
+    airbnbs = [l for l in listings if l.source == "airbnb"]
+    if not airbnbs:
+        return listings
+
+    try:
+        import pyairbnb
+    except ImportError:
+        return listings
+
+    adults = config["search"]["adults"]
+    currency = config["search"].get("currency", "PHP")
+    rejected: set[str] = set()
+    for l in airbnbs:
+        try:
+            details = pyairbnb.get_details(
+                room_url=l.url, adults=adults, currency=currency, language="en")
+        except Exception as exc:
+            logger.warning("Airbnb 詳細取得に失敗 (%s): %s — 除外せず残します",
+                           l.id, exc)
+            continue
+        capacity = _find_capacity(details)
+        if capacity is not None and capacity < adults:
+            logger.info("%s は定員%d名のため除外 (必要: %d名)",
+                        l.id, capacity, adults)
+            rejected.add(l.id)
+
+    kept = [l for l in listings if l.id not in rejected]
+    logger.info("Airbnb %d名宿泊の検証: %d件中 %d件通過",
+                adults, len(airbnbs), len(airbnbs) - len(rejected))
+    return kept
+
+
 def search(config: dict, check_in: str | None = None,
            check_out: str | None = None) -> list[Listing]:
     """指定日程 (省略時は config の日程) で予約可能な Airbnb を返す。"""

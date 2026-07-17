@@ -140,9 +140,14 @@ def run(config_path: Path, dry_run: bool) -> int:
 
     attach_drive_times(listings, config)
     preferred, others = split_by_distance(listings, config)
-    matched = preferred + others
     logger.info("距離条件の通過: 優先圏内 %d 件 / それ以外 %d 件",
                 len(preferred), len(others))
+
+    # search_all はゲスト数を指定できないため、候補に残った Airbnb 物件だけ
+    # 詳細 API で人数分の定員があるか検証する
+    preferred = airbnb_provider.verify_guests(preferred, config)
+    others = airbnb_provider.verify_guests(others, config)
+    matched = preferred + others
 
     attach_max_stay(matched, config)
 
