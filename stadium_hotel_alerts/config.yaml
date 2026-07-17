@@ -36,6 +36,10 @@ travel:
 email:
   to: "buchiful@gmail.com"
   subject_prefix: "[Stadium Hotel Alert]"
+  # 宿泊費に併記する第二通貨
+  second_currency: "JPY"
+  # 為替レート取得 (frankfurter.app) に失敗した場合のフォールバック (1 PHP = 何 JPY)
+  fallback_php_to_jpy: 3.4
 
 providers:
   hotels: true   # SerpAPI Google Hotels (要 SERPAPI_API_KEY)

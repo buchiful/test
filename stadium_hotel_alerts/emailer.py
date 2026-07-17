@@ -36,13 +36,21 @@ def _stay_label(l: Listing, config: dict) -> str | None:
     return f"最大{l.max_stay_nights}連泊可 ({_fmt_md(l.max_stay_check_in)}〜{check_out})"
 
 
-def _format_listing_text(l: Listing, config: dict) -> str:
+def _format_price(l: Listing, config: dict, fx_rate: float | None) -> str:
+    price = f"{l.price_per_night:,.0f} PHP"
+    if fx_rate is not None:
+        second = config["email"].get("second_currency", "JPY")
+        price += f" (約{l.price_per_night * fx_rate:,.0f} {second})"
+    return price
+
+
+def _format_listing_text(l: Listing, config: dict, fx_rate: float | None) -> str:
     rating = f"{l.rating:.1f}" if l.rating is not None else "不明"
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
     lines = [
         f"- [{kind}] {l.name}",
-        f"  1泊 {l.price_per_night:,.0f} PHP / 評価 {rating} / {drive}",
+        f"  1泊 {_format_price(l, config, fx_rate)} / 評価 {rating} / {drive}",
     ]
     stay = _stay_label(l, config)
     if stay:
@@ -53,7 +61,7 @@ def _format_listing_text(l: Listing, config: dict) -> str:
     return "\n".join(lines)
 
 
-def _format_listing_html(l: Listing, config: dict) -> str:
+def _format_listing_html(l: Listing, config: dict, fx_rate: float | None) -> str:
     rating = f"{l.rating:.1f}" if l.rating is not None else "不明"
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
@@ -62,14 +70,17 @@ def _format_listing_html(l: Listing, config: dict) -> str:
     stay_html = f"<br>🛏 {stay}" if stay else ""
     return (
         f'<li><a href="{l.url}"><b>{l.name}</b></a> [{kind}]<br>'
-        f"1泊 {l.price_per_night:,.0f} PHP ・ 評価 {rating} ・ {drive}{maps}"
+        f"1泊 {_format_price(l, config, fx_rate)} ・ 評価 {rating} ・ {drive}{maps}"
         f"{stay_html}</li>"
     )
 
 
 def build_email(preferred: list[Listing], others: list[Listing],
-                config: dict) -> tuple[str, str, str]:
-    """(subject, text_body, html_body) を返す。"""
+                config: dict, fx_rate: float | None = None) -> tuple[str, str, str]:
+    """(subject, text_body, html_body) を返す。
+
+    fx_rate: 1 PHP あたりの第二通貨レート。None なら併記しない。
+    """
     s = config["search"]
     total = len(preferred) + len(others)
     subject = (
@@ -91,14 +102,14 @@ def build_email(preferred: list[Listing], others: list[Listing],
     max_min = f.get("max_drive_minutes", 30)
     if preferred:
         text_parts.append(f"■ 車で{pref_min}分以内(優先)\n" +
-                          "\n".join(_format_listing_text(l, config) for l in preferred))
+                          "\n".join(_format_listing_text(l, config, fx_rate) for l in preferred))
         html_parts.append(f"<h3>🚗 車で{pref_min}分以内(優先)</h3><ul>" +
-                          "".join(_format_listing_html(l, config) for l in preferred) + "</ul>")
+                          "".join(_format_listing_html(l, config, fx_rate) for l in preferred) + "</ul>")
     if others:
         text_parts.append(f"■ 車で{pref_min}〜{max_min}分\n" +
-                          "\n".join(_format_listing_text(l, config) for l in others))
+                          "\n".join(_format_listing_text(l, config, fx_rate) for l in others))
         html_parts.append(f"<h3>車で{pref_min}〜{max_min}分</h3><ul>" +
-                          "".join(_format_listing_html(l, config) for l in others) + "</ul>")
+                          "".join(_format_listing_html(l, config, fx_rate) for l in others) + "</ul>")
 
     text_parts.append(
         "※ 価格・空室状況は変動します。予約前に必ずリンク先でご確認ください。"

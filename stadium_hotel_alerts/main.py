@@ -16,7 +16,7 @@ from pathlib import Path
 
 import yaml
 
-from . import emailer, state as state_mod, travel_time
+from . import emailer, fx, state as state_mod, travel_time
 from .models import Listing
 from .providers import airbnb_provider, hotels_serpapi
 
@@ -160,8 +160,12 @@ def run(config_path: Path, dry_run: bool) -> int:
         logger.info("新規の物件はありません。メールは送信しません")
         return 0
 
+    e = config["email"]
+    fx_rate = fx.get_rate(config["search"].get("currency", "PHP"),
+                          e.get("second_currency", "JPY"),
+                          e.get("fallback_php_to_jpy", 3.4))
     subject, text_body, html_body = emailer.build_email(
-        new_preferred, new_others, config)
+        new_preferred, new_others, config, fx_rate)
 
     if dry_run:
         print("=" * 60)
