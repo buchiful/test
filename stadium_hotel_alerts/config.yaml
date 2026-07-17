@@ -16,8 +16,8 @@ location:
 
 filters:
   # 1泊あたりの予算 (PHP)
-  min_price_per_night: 3000
-  max_price_per_night: 7000
+  min_price_per_night: 1800
+  max_price_per_night: 3500
   min_rating: 3.7
   require_air_conditioning: true
   # 車での所要時間 (分)
