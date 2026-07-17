@@ -26,20 +26,24 @@ def _format_listing_text(l: Listing) -> str:
     rating = f"{l.rating:.1f}" if l.rating is not None else "不明"
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
-    return (
-        f"- [{kind}] {l.name}\n"
-        f"  1泊 {l.price_per_night:,.0f} PHP / 評価 {rating} / {drive}\n"
-        f"  {l.url}"
-    )
+    lines = [
+        f"- [{kind}] {l.name}",
+        f"  1泊 {l.price_per_night:,.0f} PHP / 評価 {rating} / {drive}",
+        f"  {l.url}",
+    ]
+    if l.maps_url:
+        lines.append(f"  地図: {l.maps_url}")
+    return "\n".join(lines)
 
 
 def _format_listing_html(l: Listing) -> str:
     rating = f"{l.rating:.1f}" if l.rating is not None else "不明"
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
+    maps = f' ・ <a href="{l.maps_url}">📍 地図</a>' if l.maps_url else ""
     return (
         f'<li><a href="{l.url}"><b>{l.name}</b></a> [{kind}]<br>'
-        f"1泊 {l.price_per_night:,.0f} PHP ・ 評価 {rating} ・ {drive}</li>"
+        f"1泊 {l.price_per_night:,.0f} PHP ・ 評価 {rating} ・ {drive}{maps}</li>"
     )
 
 
