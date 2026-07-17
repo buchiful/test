@@ -20,6 +20,9 @@ class Listing:
     lng: float | None
     has_air_conditioning: bool | None  # None = 不明
     drive_minutes: float | None = None
+    # 必須期間を含む最大連続宿泊 (attach_max_stay で設定)
+    max_stay_nights: int | None = None
+    max_stay_check_in: str | None = None
     extra: dict = field(default_factory=dict)
 
     @property

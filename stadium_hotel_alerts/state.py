@@ -34,7 +34,7 @@ def save(path: str | Path, state: dict) -> None:
 
 
 def select_new(listings: list[Listing], state: dict) -> list[Listing]:
-    """未通知、または価格が大きく変動した物件だけを返す。"""
+    """未通知、価格が大きく変動、または連泊可能日数が増えた物件だけを返す。"""
     new: list[Listing] = []
     for l in listings:
         prev = state.get(l.id)
@@ -44,6 +44,11 @@ def select_new(listings: list[Listing], state: dict) -> list[Listing]:
         prev_price = prev.get("price_per_night", 0) or 0
         if prev_price and abs(l.price_per_night - prev_price) / prev_price >= PRICE_CHANGE_THRESHOLD:
             new.append(l)
+            continue
+        prev_stay = prev.get("max_stay_nights")
+        if (prev_stay is not None and l.max_stay_nights is not None
+                and l.max_stay_nights > prev_stay):
+            new.append(l)
     return new
 
 
@@ -52,4 +57,5 @@ def mark_notified(listings: list[Listing], state: dict) -> None:
         state[l.id] = {
             "name": l.name,
             "price_per_night": l.price_per_night,
+            "max_stay_nights": l.max_stay_nights,
         }

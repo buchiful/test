@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 import yaml
@@ -71,6 +72,50 @@ def split_by_distance(listings: list[Listing], config: dict
     return sorted(preferred, key=key), sorted(others, key=key)
 
 
+def attach_max_stay(matched: list[Listing], config: dict) -> None:
+    """必須期間 (check_in〜check_out) を含む最大連続宿泊数を求める。
+
+    earliest_check_in から check_in まで1日ずつ遡り、長い滞在から順に
+    「そのチェックイン日〜check_out で予約可能か」をプロバイダに問い合わせる。
+    一括予約が可能 = その期間ずっと連続で泊まれる、とみなす。
+    条件に合致した物件 (matched) についてのみ確認するので、追加の検索は
+    ヒットがあったときにしか走らない。
+    """
+    s = config["search"]
+    base_in = date.fromisoformat(s["check_in"])
+    base_out = date.fromisoformat(s["check_out"])
+    for l in matched:
+        l.max_stay_nights = (base_out - base_in).days
+        l.max_stay_check_in = s["check_in"]
+
+    earliest = s.get("earliest_check_in")
+    if not earliest or not matched:
+        return
+
+    remaining = list(matched)
+    d = date.fromisoformat(earliest)
+    while d < base_in and remaining:
+        check_in = d.isoformat()
+        nights = (base_out - d).days
+        available: set[str] = set()
+        try:
+            if config["providers"].get("hotels") and \
+                    any(l.source == "hotel" for l in remaining):
+                available |= {x.id for x in
+                              hotels_serpapi.search(config, check_in, s["check_out"])}
+            if config["providers"].get("airbnb") and \
+                    any(l.source == "airbnb" for l in remaining):
+                available |= {x.id for x in
+                              airbnb_provider.search(config, check_in, s["check_out"])}
+        except Exception as exc:
+            logger.warning("連泊確認 (%s〜) に失敗: %s", check_in, exc)
+        for l in [r for r in remaining if r.id in available]:
+            l.max_stay_nights = nights
+            l.max_stay_check_in = check_in
+            remaining.remove(l)
+        d += timedelta(days=1)
+
+
 def dedupe(listings: list[Listing]) -> list[Listing]:
     seen: dict[str, Listing] = {}
     for l in listings:
@@ -96,8 +141,10 @@ def run(config_path: Path, dry_run: bool) -> int:
     attach_drive_times(listings, config)
     preferred, others = split_by_distance(listings, config)
     matched = preferred + others
-    logger.info("距離条件の通過: 20分以内 %d 件 / 20〜40分 %d 件",
+    logger.info("距離条件の通過: 優先圏内 %d 件 / それ以外 %d 件",
                 len(preferred), len(others))
+
+    attach_max_stay(matched, config)
 
     state_path = config_path.parent / config.get("state_file", "state.json")
     state = state_mod.load(state_path)

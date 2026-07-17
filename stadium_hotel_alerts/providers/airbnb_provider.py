@@ -96,7 +96,9 @@ def _parse_result(r: dict, nights: int) -> Listing | None:
     )
 
 
-def search(config: dict) -> list[Listing]:
+def search(config: dict, check_in: str | None = None,
+           check_out: str | None = None) -> list[Listing]:
+    """指定日程 (省略時は config の日程) で予約可能な Airbnb を返す。"""
     try:
         import pyairbnb
     except ImportError:
@@ -108,7 +110,8 @@ def search(config: dict) -> list[Listing]:
     loc = config["location"]
     box = _bounding_box(loc["lat"], loc["lng"], loc.get("search_radius_km", 30))
 
-    check_in, check_out = s["check_in"], s["check_out"]
+    check_in = check_in or s["check_in"]
+    check_out = check_out or s["check_out"]
     from datetime import date
     nights = (date.fromisoformat(check_out) - date.fromisoformat(check_in)).days
 
@@ -150,5 +153,5 @@ def search(config: dict) -> list[Listing]:
             listing.has_air_conditioning = None  # 不明として扱う
         listings.append(listing)
 
-    logger.info("Airbnb: %d 件取得", len(listings))
+    logger.info("Airbnb (%s〜%s): %d 件取得", check_in, check_out, len(listings))
     return listings

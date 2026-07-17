@@ -29,7 +29,9 @@ def _has_aircon(prop: dict) -> bool | None:
     return any(k in joined for k in AIRCON_KEYWORDS)
 
 
-def search(config: dict) -> list[Listing]:
+def search(config: dict, check_in: str | None = None,
+           check_out: str | None = None) -> list[Listing]:
+    """指定日程 (省略時は config の日程) で予約可能なホテルを返す。"""
     api_key = os.environ.get("SERPAPI_API_KEY")
     if not api_key:
         logger.warning("SERPAPI_API_KEY が未設定のためホテル検索をスキップします")
@@ -38,12 +40,14 @@ def search(config: dict) -> list[Listing]:
     s = config["search"]
     f = config["filters"]
     loc = config["location"]
+    check_in = check_in or s["check_in"]
+    check_out = check_out or s["check_out"]
 
     params = {
         "engine": "google_hotels",
         "q": f"hotels near {loc['name']} Bulacan Philippines",
-        "check_in_date": s["check_in"],
-        "check_out_date": s["check_out"],
+        "check_in_date": check_in,
+        "check_out_date": check_out,
         "adults": s["adults"],
         "currency": s.get("currency", "PHP"),
         "gl": "ph",
@@ -94,5 +98,6 @@ def search(config: dict) -> list[Listing]:
         if not next_page_token:
             break
 
-    logger.info("SerpAPI hotels: %d 件取得", len(listings))
+    logger.info("SerpAPI hotels (%s〜%s): %d 件取得", check_in, check_out,
+                len(listings))
     return listings
