@@ -1,0 +1,47 @@
+name: Hotel availability alerts
+
+on:
+  schedule:
+    # 6時間ごとに空室をチェック (UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Restore notification state
+        uses: actions/cache/restore@v4
+        with:
+          path: stadium_hotel_alerts/state.json
+          key: hotel-alerts-state-${{ github.run_id }}
+          restore-keys: |
+            hotel-alerts-state-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check availability and send alerts
+        env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: python -m stadium_hotel_alerts.main
+
+      - name: Save notification state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: stadium_hotel_alerts/state.json
+          key: hotel-alerts-state-${{ github.run_id }}
