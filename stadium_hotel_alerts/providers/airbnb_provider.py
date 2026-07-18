@@ -143,10 +143,12 @@ def verify_guests(listings: list[Listing], config: dict) -> list[Listing]:
                            l.id, exc)
             continue
         capacity = _find_capacity(details)
-        if capacity is not None and capacity < adults:
-            logger.info("%s は定員%d名のため除外 (必要: %d名)",
-                        l.id, capacity, adults)
-            rejected.add(l.id)
+        if capacity is not None:
+            l.max_guests = capacity
+            if capacity < adults:
+                logger.info("%s は定員%d名のため除外 (必要: %d名)",
+                            l.id, capacity, adults)
+                rejected.add(l.id)
 
     kept = [l for l in listings if l.id not in rejected]
     logger.info("Airbnb %d名宿泊の検証: %d件中 %d件通過",
