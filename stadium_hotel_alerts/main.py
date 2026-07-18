@@ -16,7 +16,7 @@ from pathlib import Path
 
 import yaml
 
-from . import emailer, state as state_mod, travel_time
+from . import emailer, fx, state as state_mod, travel_time
 from .models import Listing
 from .providers import airbnb_provider, hotels_serpapi
 
@@ -140,9 +140,14 @@ def run(config_path: Path, dry_run: bool) -> int:
 
     attach_drive_times(listings, config)
     preferred, others = split_by_distance(listings, config)
-    matched = preferred + others
     logger.info("距離条件の通過: 優先圏内 %d 件 / それ以外 %d 件",
                 len(preferred), len(others))
+
+    # search_all はゲスト数を指定できないため、候補に残った Airbnb 物件だけ
+    # 詳細 API で人数分の定員があるか検証する
+    preferred = airbnb_provider.verify_guests(preferred, config)
+    others = airbnb_provider.verify_guests(others, config)
+    matched = preferred + others
 
     attach_max_stay(matched, config)
 
@@ -155,8 +160,12 @@ def run(config_path: Path, dry_run: bool) -> int:
         logger.info("新規の物件はありません。メールは送信しません")
         return 0
 
+    e = config["email"]
+    fx_rate = fx.get_rate(config["search"].get("currency", "PHP"),
+                          e.get("second_currency", "JPY"),
+                          e.get("fallback_php_to_jpy", 3.4))
     subject, text_body, html_body = emailer.build_email(
-        new_preferred, new_others, config)
+        new_preferred, new_others, config, fx_rate)
 
     if dry_run:
         print("=" * 60)
