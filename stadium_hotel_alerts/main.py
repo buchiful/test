@@ -11,7 +11,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import yaml
@@ -73,53 +73,65 @@ def split_by_distance(listings: list[Listing], config: dict
 
 
 def attach_max_stay(matched: list[Listing], config: dict) -> None:
-    """必須期間 (check_in〜check_out) を含む最大連続宿泊数を求める。
+    """宿泊候補期間の範囲内 (stay_range_start〜stay_range_end) での
+    最大連続宿泊数を求める。
 
-    earliest_check_in から check_in まで1日ずつ遡り、長い滞在から順に
-    「そのチェックイン日〜check_out で予約可能か」をプロバイダに問い合わせる。
-    一括予約が可能 = その期間ずっと連続で泊まれる、とみなす。
-    条件に合致した物件 (matched) についてのみ確認するので、追加の検索は
-    ヒットがあったときにしか走らない。
+    各物件はすでに検索ループで少なくとも1つの候補期間 (l.available_windows)
+    で予約可能と分かっているので、まずその中で最長のものを基準値とする。
+    さらにその基準値が範囲全体の泊数に届いていない物件だけ、範囲全体を
+    一括予約できるか追加で確認する (ヒットがあったときだけ1回検索が走る)。
     """
     s = config["search"]
-    base_in = date.fromisoformat(s["check_in"])
-    base_out = date.fromisoformat(s["check_out"])
-    for l in matched:
-        l.max_stay_nights = (base_out - base_in).days
-        l.max_stay_check_in = s["check_in"]
+    range_start = date.fromisoformat(s["stay_range_start"])
+    range_end = date.fromisoformat(s["stay_range_end"])
+    full_nights = (range_end - range_start).days
 
-    earliest = s.get("earliest_check_in")
-    if not earliest or not matched:
+    for l in matched:
+        best_nights, best_window = 0, None
+        for ci, co in l.available_windows:
+            nights = (date.fromisoformat(co) - date.fromisoformat(ci)).days
+            if nights > best_nights:
+                best_nights, best_window = nights, (ci, co)
+        l.max_stay_nights = best_nights
+        l.max_stay_check_in, l.max_stay_check_out = best_window or (None, None)
+
+    if full_nights <= 0:
+        return
+    to_check = [l for l in matched if l.max_stay_nights < full_nights]
+    if not to_check:
         return
 
-    remaining = list(matched)
-    d = date.fromisoformat(earliest)
-    while d < base_in and remaining:
-        check_in = d.isoformat()
-        nights = (base_out - d).days
-        available: set[str] = set()
-        try:
-            if config["providers"].get("hotels") and \
-                    any(l.source == "hotel" for l in remaining):
-                available |= {x.id for x in
-                              hotels_serpapi.search(config, check_in, s["check_out"])}
-            if config["providers"].get("airbnb") and \
-                    any(l.source == "airbnb" for l in remaining):
-                available |= {x.id for x in
-                              airbnb_provider.search(config, check_in, s["check_out"])}
-        except Exception as exc:
-            logger.warning("連泊確認 (%s〜) に失敗: %s", check_in, exc)
-        for l in [r for r in remaining if r.id in available]:
-            l.max_stay_nights = nights
-            l.max_stay_check_in = check_in
-            remaining.remove(l)
-        d += timedelta(days=1)
+    range_start_s, range_end_s = s["stay_range_start"], s["stay_range_end"]
+    available: set[str] = set()
+    try:
+        if config["providers"].get("hotels") and any(l.source == "hotel" for l in to_check):
+            available |= {x.id for x in
+                          hotels_serpapi.search(config, range_start_s, range_end_s)}
+        if config["providers"].get("airbnb") and any(l.source == "airbnb" for l in to_check):
+            available |= {x.id for x in
+                          airbnb_provider.search(config, range_start_s, range_end_s)}
+    except Exception as exc:
+        logger.warning("連泊確認 (%s〜%s) に失敗: %s", range_start_s, range_end_s, exc)
+        return
+
+    for l in to_check:
+        if l.id in available:
+            l.max_stay_nights = full_nights
+            l.max_stay_check_in, l.max_stay_check_out = range_start_s, range_end_s
 
 
 def dedupe(listings: list[Listing]) -> list[Listing]:
+    """同一IDの重複をまとめる。価格は最安値を採用し、予約可能だった
+    宿泊期間 (available_windows) はすべて合算する。"""
     seen: dict[str, Listing] = {}
     for l in listings:
-        if l.id not in seen or l.price_per_night < seen[l.id].price_per_night:
+        prev = seen.get(l.id)
+        if prev is None:
+            seen[l.id] = l
+            continue
+        prev.available_windows |= l.available_windows
+        if l.price_per_night < prev.price_per_night:
+            l.available_windows = prev.available_windows
             seen[l.id] = l
     return list(seen.values())
 
@@ -128,10 +140,16 @@ def run(config_path: Path, dry_run: bool) -> int:
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
 
     listings: list[Listing] = []
-    if config["providers"].get("hotels"):
-        listings += hotels_serpapi.search(config)
-    if config["providers"].get("airbnb"):
-        listings += airbnb_provider.search(config)
+    for stay in config["search"]["stays"]:
+        ci, co = stay["check_in"], stay["check_out"]
+        batch: list[Listing] = []
+        if config["providers"].get("hotels"):
+            batch += hotels_serpapi.search(config, ci, co)
+        if config["providers"].get("airbnb"):
+            batch += airbnb_provider.search(config, ci, co)
+        for l in batch:
+            l.available_windows = {(ci, co)}
+        listings += batch
     listings = dedupe(listings)
     logger.info("取得合計: %d 件", len(listings))
 

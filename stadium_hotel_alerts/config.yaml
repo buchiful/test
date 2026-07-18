@@ -1,11 +1,15 @@
 # Philippine Sports Stadium 周辺ホテル・Airbnb 空室監視の設定
 
 search:
-  # 3/15〜3/17 の宿泊は必須条件
-  check_in: "2027-03-15"
-  check_out: "2027-03-17"
-  # さらに 3/13 まで遡って何日間連続で泊まれるかを確認し、メールに表示する
-  earliest_check_in: "2027-03-13"
+  # 宿泊候補期間。いずれかで空室があれば通知対象
+  stays:
+    - check_in: "2027-03-13"
+      check_out: "2027-03-15"
+    - check_in: "2027-03-15"
+      check_out: "2027-03-17"
+  # この範囲内で最大何日連続宿泊できるかを確認し、メールに表示する
+  stay_range_start: "2027-03-13"
+  stay_range_end: "2027-03-17"
   adults: 2
   currency: "PHP"
 

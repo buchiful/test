@@ -22,9 +22,13 @@ class Listing:
     drive_minutes: float | None = None
     # 定員 (人数)。Airbnb のみ verify_guests で設定、不明なら None
     max_guests: int | None = None
-    # 必須期間を含む最大連続宿泊 (attach_max_stay で設定)
+    # 予約可能と確認できた (check_in, check_out) の組。複数の宿泊候補期間で
+    # 見つかった場合はすべて保持する (main.py の検索ループ / dedupe で設定)
+    available_windows: set[tuple[str, str]] = field(default_factory=set)
+    # 宿泊候補期間の範囲内での最大連続宿泊 (attach_max_stay で設定)
     max_stay_nights: int | None = None
     max_stay_check_in: str | None = None
+    max_stay_check_out: str | None = None
     extra: dict = field(default_factory=dict)
 
     @property
