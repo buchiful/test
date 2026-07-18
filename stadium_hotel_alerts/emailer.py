@@ -44,13 +44,21 @@ def _format_price(l: Listing, config: dict, fx_rate: float | None) -> str:
     return price
 
 
+def _guests_label(l: Listing) -> str | None:
+    return f"定員{l.max_guests}名" if l.max_guests is not None else None
+
+
 def _format_listing_text(l: Listing, config: dict, fx_rate: float | None) -> str:
     rating = f"{l.rating:.1f}" if l.rating is not None else "不明"
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
+    detail = f"1泊 {_format_price(l, config, fx_rate)} / 評価 {rating} / {drive}"
+    guests = _guests_label(l)
+    if guests:
+        detail += f" / {guests}"
     lines = [
         f"- [{kind}] {l.name}",
-        f"  1泊 {_format_price(l, config, fx_rate)} / 評価 {rating} / {drive}",
+        f"  {detail}",
     ]
     stay = _stay_label(l, config)
     if stay:
@@ -66,11 +74,13 @@ def _format_listing_html(l: Listing, config: dict, fx_rate: float | None) -> str
     drive = f"車で約{l.drive_minutes:.0f}分" if l.drive_minutes is not None else "所要時間不明"
     kind = "ホテル" if l.source == "hotel" else "Airbnb"
     maps = f' ・ <a href="{l.maps_url}">📍 地図</a>' if l.maps_url else ""
+    guests = _guests_label(l)
+    guests_html = f" ・ 👥 {guests}" if guests else ""
     stay = _stay_label(l, config)
     stay_html = f"<br>🛏 {stay}" if stay else ""
     return (
         f'<li><a href="{l.url}"><b>{l.name}</b></a> [{kind}]<br>'
-        f"1泊 {_format_price(l, config, fx_rate)} ・ 評価 {rating} ・ {drive}{maps}"
+        f"1泊 {_format_price(l, config, fx_rate)} ・ 評価 {rating} ・ {drive}{maps}{guests_html}"
         f"{stay_html}</li>"
     )
 
