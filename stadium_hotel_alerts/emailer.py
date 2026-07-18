@@ -30,10 +30,10 @@ def _fmt_md(iso_date: str) -> str:
 
 def _stay_label(l: Listing, config: dict) -> str | None:
     """連続宿泊の表示。例: "最大4連泊可 (3/13〜3/17)"。"""
-    if l.max_stay_nights is None or l.max_stay_check_in is None:
+    if not l.max_stay_nights or l.max_stay_check_in is None or l.max_stay_check_out is None:
         return None
-    check_out = _fmt_md(config["search"]["check_out"])
-    return f"最大{l.max_stay_nights}連泊可 ({_fmt_md(l.max_stay_check_in)}〜{check_out})"
+    return (f"最大{l.max_stay_nights}連泊可 "
+            f"({_fmt_md(l.max_stay_check_in)}〜{_fmt_md(l.max_stay_check_out)})")
 
 
 def _format_price(l: Listing, config: dict, fx_rate: float | None) -> str:
@@ -93,16 +93,19 @@ def build_email(preferred: list[Listing], others: list[Listing],
     """
     s = config["search"]
     total = len(preferred) + len(others)
+    range_start, range_end = s["stay_range_start"], s["stay_range_end"]
     subject = (
         f"{config['email'].get('subject_prefix', '[Stadium Hotel Alert]')} "
-        f"{s['check_in']}〜{s['check_out']} 空室 {total}件"
+        f"{range_start}〜{range_end} 空室 {total}件"
     )
 
+    stays_desc = " または ".join(
+        f"{st['check_in']}〜{st['check_out']}" for st in s["stays"])
     header = (
         f"Philippine Sports Stadium 周辺の空室が見つかりました。\n"
-        f"宿泊日: {s['check_in']} 〜 {s['check_out']} / {s['adults']}名\n"
-        f"(「連泊」は {s.get('earliest_check_in', s['check_in'])} まで遡って"
-        f"連続で泊まれる最大日数です)\n"
+        f"宿泊候補: {stays_desc} / {s['adults']}名\n"
+        f"(「連泊」は {range_start}〜{range_end} の範囲内で"
+        f"泊まれる最大連続日数です)\n"
     )
     text_parts = [header]
     html_parts = [f"<p>{header.replace(chr(10), '<br>')}</p>"]

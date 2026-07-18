@@ -29,9 +29,8 @@ def _has_aircon(prop: dict) -> bool | None:
     return any(k in joined for k in AIRCON_KEYWORDS)
 
 
-def search(config: dict, check_in: str | None = None,
-           check_out: str | None = None) -> list[Listing]:
-    """指定日程 (省略時は config の日程) で予約可能なホテルを返す。"""
+def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
+    """指定日程で予約可能なホテルを返す。"""
     api_key = os.environ.get("SERPAPI_API_KEY")
     if not api_key:
         logger.warning("SERPAPI_API_KEY が未設定のためホテル検索をスキップします")
@@ -40,8 +39,6 @@ def search(config: dict, check_in: str | None = None,
     s = config["search"]
     f = config["filters"]
     loc = config["location"]
-    check_in = check_in or s["check_in"]
-    check_out = check_out or s["check_out"]
 
     params = {
         "engine": "google_hotels",
