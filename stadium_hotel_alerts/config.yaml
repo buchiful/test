@@ -28,7 +28,7 @@ filters:
   min_rating: 3.7
   require_air_conditioning: true
   # 車での所要時間 (分)
-  max_drive_minutes: 30
+  max_drive_minutes: 38
   preferred_drive_minutes: 20
 
 travel:
