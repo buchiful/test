@@ -75,6 +75,10 @@ def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
                 continue  # 料金が取れない = 空室情報なしとして除外
             gps = prop.get("gps_coordinates") or {}
             prop_token = prop.get("property_token") or prop.get("name", "")
+            try:
+                review_count = int(prop["reviews"]) if prop.get("reviews") is not None else None
+            except (TypeError, ValueError):
+                review_count = None
             listings.append(Listing(
                 id=f"hotel:{prop_token}",
                 source="hotel",
@@ -82,13 +86,11 @@ def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
                 url=prop.get("link") or prop.get("serpapi_property_details_link", ""),
                 price_per_night=float(price),
                 rating=prop.get("overall_rating"),
+                review_count=review_count,
                 lat=gps.get("latitude"),
                 lng=gps.get("longitude"),
                 has_air_conditioning=_has_aircon(prop),
-                extra={
-                    "hotel_class": prop.get("hotel_class"),
-                    "reviews": prop.get("reviews"),
-                },
+                extra={"hotel_class": prop.get("hotel_class")},
             ))
 
         next_page_token = (data.get("serpapi_pagination") or {}).get("next_page_token")

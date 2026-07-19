@@ -20,6 +20,8 @@ class Listing:
     lng: float | None
     has_air_conditioning: bool | None  # None = 不明
     drive_minutes: float | None = None
+    # 口コミ件数。取得できない場合は None
+    review_count: int | None = None
     # 定員 (人数)。Airbnb のみ verify_guests で設定、不明なら None
     max_guests: int | None = None
     # 予約可能と確認できた (check_in, check_out) の組。複数の宿泊候補期間で

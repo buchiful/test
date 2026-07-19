@@ -49,12 +49,20 @@ def _parse_result(r: dict, nights: int) -> Listing | None:
         name = _get(r["listing"], "name", "title", default="(名称不明)")
 
     rating = _get(r, "rating")
+    review_count = None
     if isinstance(rating, dict):
+        review_count = _get(rating, "reviewsCount", "reviewCount", "review_count", "count")
         rating = _get(rating, "value", "guestSatisfaction", "average")
+    if review_count is None:
+        review_count = _get(r, "reviewsCount", "reviewCount", "review_count", "numberOfReviews")
     try:
         rating = float(rating) if rating is not None else None
     except (TypeError, ValueError):
         rating = None
+    try:
+        review_count = int(review_count) if review_count is not None else None
+    except (TypeError, ValueError):
+        review_count = None
 
     # 価格: pyairbnb は price.unit / price.total などの形で返す
     price_per_night = None
@@ -89,6 +97,7 @@ def _parse_result(r: dict, nights: int) -> Listing | None:
         url=f"https://www.airbnb.com/rooms/{room_id}",
         price_per_night=round(price_per_night, 0),
         rating=rating,
+        review_count=review_count,
         lat=float(lat) if lat is not None else None,
         lng=float(lng) if lng is not None else None,
         # アメニティ ID でエアコン絞り込み済みの検索結果なら True
