@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 
 
 def apply_filters(listings: list[Listing], config: dict) -> list[Listing]:
-    """予算・評価・エアコンの条件でフィルタする (距離は別途)。"""
+    """予算・評価・エアコン・除外リストの条件でフィルタする (距離は別途)。"""
     f = config["filters"]
+    excluded = [n.lower() for n in f.get("excluded_names", [])]
     out: list[Listing] = []
     for l in listings:
         if not (f["min_price_per_night"] <= l.price_per_night <= f["max_price_per_night"]):
@@ -34,6 +35,9 @@ def apply_filters(listings: list[Listing], config: dict) -> list[Listing]:
             continue
         if f.get("require_air_conditioning") and l.has_air_conditioning is False:
             # True または None(不明) は通す。明確に「なし」のみ除外
+            continue
+        name_lower = l.name.lower()
+        if any(n in name_lower or name_lower in n for n in excluded):
             continue
         out.append(l)
     return out

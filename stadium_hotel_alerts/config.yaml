@@ -30,6 +30,9 @@ filters:
   # 車での所要時間 (分)
   max_drive_minutes: 30
   preferred_drive_minutes: 20
+  # ヒットしても通知対象から除外する物件名 (部分一致・大文字小文字区別なし)
+  excluded_names:
+    - "City Stay Inns Hotel Marilao Plaza Pension Inn Commercial & Residential Apartments for Rent & Daily Apartelles"
 
 travel:
   # OSRM は自由流の所要時間を返すため、渋滞を見込んだ係数を掛ける
