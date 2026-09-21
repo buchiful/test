@@ -33,6 +33,7 @@ filters:
   # ヒットしても通知対象から除外する物件名 (部分一致・大文字小文字区別なし)
   excluded_names:
     - "City Stay Inns Hotel Marilao Plaza Pension Inn Commercial & Residential Apartments for Rent & Daily Apartelles"
+    - "RedDoorz @ EL Highway Hotel Bulacan"
 
 travel:
   # OSRM は自由流の所要時間を返すため、渋滞を見込んだ係数を掛ける
