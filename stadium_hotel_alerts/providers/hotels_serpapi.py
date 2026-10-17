@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+from urllib.parse import quote_plus
 
 import requests
 
@@ -75,6 +76,14 @@ def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
                 continue  # 料金が取れない = 空室情報なしとして除外
             gps = prop.get("gps_coordinates") or {}
             prop_token = prop.get("property_token") or prop.get("name", "")
+            name = prop.get("name", "(名称不明)")
+            # serpapi_property_details_link は SerpAPI の API エンドポイント
+            # (api_key が無いと開けない) であり、人が見るページではないため
+            # 使わない。link が無ければ Google マップ検索にフォールバックする。
+            link = prop.get("link") or (
+                "https://www.google.com/maps/search/?api=1&query="
+                + quote_plus(name)
+            )
             try:
                 review_count = int(prop["reviews"]) if prop.get("reviews") is not None else None
             except (TypeError, ValueError):
@@ -82,8 +91,8 @@ def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
             listings.append(Listing(
                 id=f"hotel:{prop_token}",
                 source="hotel",
-                name=prop.get("name", "(名称不明)"),
-                url=prop.get("link") or prop.get("serpapi_property_details_link", ""),
+                name=name,
+                url=link,
                 price_per_night=float(price),
                 rating=prop.get("overall_rating"),
                 review_count=review_count,
