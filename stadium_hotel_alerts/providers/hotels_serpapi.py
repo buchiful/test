@@ -79,11 +79,15 @@ def search(config: dict, check_in: str, check_out: str) -> list[Listing]:
             name = prop.get("name", "(名称不明)")
             # serpapi_property_details_link は SerpAPI の API エンドポイント
             # (api_key が無いと開けない) であり、人が見るページではないため
-            # 使わない。link が無ければ Google マップ検索にフォールバックする。
-            link = prop.get("link") or (
-                "https://www.google.com/maps/search/?api=1&query="
-                + quote_plus(name)
-            )
+            # 使わない。link が無ければ Google マップ (座標優先) にフォールバック。
+            lat, lng = gps.get("latitude"), gps.get("longitude")
+            if lat is not None and lng is not None:
+                fallback_link = ("https://www.google.com/maps/search/?api=1"
+                                 f"&query={lat},{lng}")
+            else:
+                fallback_link = ("https://www.google.com/maps/search/?api=1&query="
+                                 + quote_plus(name))
+            link = prop.get("link") or fallback_link
             try:
                 review_count = int(prop["reviews"]) if prop.get("reviews") is not None else None
             except (TypeError, ValueError):

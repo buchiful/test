@@ -37,13 +37,14 @@ class Listing:
     def maps_url(self) -> str | None:
         """Google マップで物件の場所を開く URL。
 
-        ホテルは施設名で検索 (店舗ページが開き、レビュー等も見られる)。
-        Airbnb は物件名が汎用的で名前検索が当たらないため座標ピンを使う。
+        座標があれば座標ピンを使う。Google Hotels の物件名は民泊の宣伝文句
+        のようなものも多く、名前検索だと無関係な場所 (別の都市のホテル等) に
+        当たるため。座標が無いホテルだけ施設名検索にフォールバックする。
         """
-        if self.source == "hotel" and self.name and self.name != "(名称不明)":
-            return ("https://www.google.com/maps/search/?api=1&query="
-                    + quote_plus(self.name))
         if self.lat is not None and self.lng is not None:
             return (f"https://www.google.com/maps/search/?api=1"
                     f"&query={self.lat},{self.lng}")
+        if self.source == "hotel" and self.name and self.name != "(名称不明)":
+            return ("https://www.google.com/maps/search/?api=1&query="
+                    + quote_plus(self.name))
         return None
